@@ -40,7 +40,7 @@
 
   <property>
     <name>mapreduce.reduce.java.opts</name>
-    <value>-Xmx2048m</value>
+    <value>-Xmx4096m</value>
   </property>
 
 </configuration>
