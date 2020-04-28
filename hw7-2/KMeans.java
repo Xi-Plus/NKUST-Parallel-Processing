@@ -17,13 +17,105 @@ public class KMeans {
     public static String IN = "inputlarger";
     public static String CENTROID_FILE_NAME = "/centroid.txt";
     public static String OUTPUT_FILE_NAME = "/part-00000";
-    public static String DATA_FILE_NAME = "/data.txt";
+    public static String DATA_FILE_NAME = "/computers.csv";
     public static String JOB_NAME = "KMeans";
     public static String SPLITTER = "\\t| ";
-    public static List<Double> mCenters = new ArrayList<Double>();
+    public static List<double[]> mCenters = new ArrayList<double[]>();
+
+    public static class MyPointWritable implements Writable, WritableComparable<MyPointWritable> {
+        public double[] points;
+
+        public MyPointWritable() {
+            points = new double[7];
+        }
+
+        public void set(double[] in) {
+            for (int i = 0; i < 7; i++) {
+                points[i] = in[i];
+            }
+        }
+
+        @Override
+        public void readFields(DataInput in) throws IOException {
+            for (int i = 0; i < 7; i++) {
+                points[i] = in.readDouble();
+            }
+        }
+
+        @Override
+        public void write(DataOutput out) throws IOException {
+            for (int i = 0; i < 7; i++) {
+                out.writeDouble(points[i]);
+            }
+        }
+
+        @Override
+        public String toString() {
+            String result = Double.toString(points[0]);
+            for (int i = 1; i < 7; i++) {
+                result += " " + Double.toString(points[i]);
+            }
+            return result;
+        }
+
+        @Override
+        public int compareTo(MyPointWritable other) {
+            for (int i = 0; i < this.points.length && i < other.points.length; i++) {
+                if (this.points[i] < other.points[i]) {
+                    return -1;
+                } else if (this.points[i] < other.points[i]) {
+                    return 1;
+                }
+            }
+            return 0;
+        }
+    }
+
+    // public static class MyPointWritable extends ArrayWritable {
+    // public MyPointWritable(DoubleWritable[] doubleWritables) {
+    // super(DoubleWritable.class);
+    // }
+
+    // @Override
+    // public DoubleWritable[] get() {
+    // return (DoubleWritable[]) super.get();
+    // }
+
+    // @Override
+    // public String toString() {
+    // DoubleWritable[] values = get();
+    // String result = "";
+    // for (int i = 0; i < values.length; i++) {
+    // if (i > 0) {
+    // result += " ";
+    // }
+    // result += values[i].toString();
+    // }
+    // return result;
+    // }
+
+    // @Override
+    // public int compareTo(MyPointWritable otherWritable) {
+    // DoubleWritable[] me = get();
+    // DoubleWritable[] other = otherWritable.get();
+    // for (int i = 0; i < me.length && i < other.length; i++) {
+    // if (me[i].get() < other[i].get()) {
+    // return -1;
+    // } else if (me[i].get() < other[i].get()) {
+    // return 1;
+    // }
+    // }
+    // if (me.length < other.length) {
+    // return -1;
+    // } else if (me.length > other.length) {
+    // return 1;
+    // }
+    // return 0;
+    // }
+    // }
 
     public static class Map extends MapReduceBase
-            implements Mapper<LongWritable, Text, DoubleWritable, DoubleWritable> {
+            implements Mapper<LongWritable, Text, MyPointWritable, MyPointWritable> {
         @Override
         public void configure(JobConf job) {
             try {
@@ -35,7 +127,13 @@ public class KMeans {
                     try {
                         while ((line = cacheReader.readLine()) != null) {
                             String[] temp = line.split(SPLITTER);
-                            mCenters.add(Double.parseDouble(temp[0]));
+
+                            double[] temp2 = new double[7];
+                            for (int i = 0; i < 7; i++) {
+                                temp2[i] = Double.parseDouble(temp[i]);
+                            }
+
+                            mCenters.add(temp2);
                         }
                     } finally {
                         cacheReader.close();
@@ -47,39 +145,88 @@ public class KMeans {
         }
 
         @Override
-        public void map(LongWritable key, Text value, OutputCollector<DoubleWritable, DoubleWritable> output,
+        public void map(LongWritable key, Text value, OutputCollector<MyPointWritable, MyPointWritable> output,
                 Reporter reporter) throws IOException {
             String line = value.toString();
-            double point = Double.parseDouble(line);
-            double min1, min2 = Double.MAX_VALUE, nearest_center = mCenters.get(0);
-            for (double c : mCenters) {
-                min1 = c - point;
+            String[] data = line.split(",");
+            if (data[0].equals("\"\"")) {
+                return;
+            }
+            for (int i = 0; i < data.length; i++) {
+                if (data[i].charAt(0) == '"' && data[i].charAt(data[i].length() - 1) == '"') {
+                    data[i] = data[i].substring(1, data[i].length() - 1);
+                }
+            }
+
+            double[] point = new double[7];
+            point[0] = (Double.parseDouble(data[1]) - 949) / (5399 - 949); // price
+            point[1] = (Double.parseDouble(data[2]) - 25) / (100 - 25); // speed
+            point[2] = (Double.parseDouble(data[3]) - 80) / (2100 - 80); // hd
+            point[3] = (Double.parseDouble(data[4]) - 2) / (32 - 2); // ram
+            point[4] = (Double.parseDouble(data[5]) - 14) / (17 - 14); // screen
+            point[5] = (Double.parseDouble(data[9]) - 39) / (339 - 39); // ads
+            point[6] = (Double.parseDouble(data[10]) - 1) / (35 - 1); // trend
+
+            double min1, min2 = Double.MAX_VALUE;
+            double[] nearest_center = mCenters.get(0);
+            for (double[] c : mCenters) {
+                min1 = 0;
+                for (int i = 0; i < 7; i++) {
+                    min1 += Math.pow(c[i] - point[i], 2);
+                }
+                min1 = Math.sqrt(min1);
+
                 if (Math.abs(min1) < Math.abs(min2)) {
                     nearest_center = c;
                     min2 = min1;
                 }
             }
-            output.collect(new DoubleWritable(nearest_center), new DoubleWritable(point));
+            // DoubleWritable[] nearest_center_temp = new DoubleWritable[7];
+            // for (int i = 0; i < 7; i++) {
+            // nearest_center_temp[i] = new DoubleWritable(nearest_center[i]);
+            // }
+            // DoubleWritable[] point_temp = new DoubleWritable[7];
+            // for (int i = 0; i < 7; i++) {
+            // point_temp[i] = new DoubleWritable(point[i]);
+            // }
+            // output.collect(new MyPointWritable(nearest_center_temp), new
+            // MyPointWritable(point_temp));
+            MyPointWritable nearest_center_temp = new MyPointWritable();
+            nearest_center_temp.set(nearest_center);
+            MyPointWritable point_temp = new MyPointWritable();
+            point_temp.set(point);
+            output.collect(nearest_center_temp, point_temp);
         }
     }
 
     public static class Reduce extends MapReduceBase
-            implements Reducer<DoubleWritable, DoubleWritable, DoubleWritable, Text> {
+            implements Reducer<MyPointWritable, MyPointWritable, MyPointWritable, Text> {
         @Override
-        public void reduce(DoubleWritable key, Iterator<DoubleWritable> values,
-                OutputCollector<DoubleWritable, Text> output, Reporter reporter) throws IOException {
-            double newCenter;
-            double sum = 0;
+        public void reduce(MyPointWritable key, Iterator<MyPointWritable> values,
+                OutputCollector<MyPointWritable, Text> output, Reporter reporter) throws IOException {
+            double[] newCenter = new double[7];
+            double[] sum = new double[7];
+            for (int i = 0; i < 7; i++) {
+                sum[i] = 0;
+            }
             int no_elements = 0;
             String points = "";
             while (values.hasNext()) {
-                double d = values.next().get();
-                points = points + " " + Double.toString(d);
-                sum = sum + d;
+                MyPointWritable temp = values.next();
+                points += points + "| ";
+                for (int i = 0; i < 7; i++) {
+                    points += Double.toString(temp.points[i]) + " ";
+                    sum[i] += temp.points[i];
+                }
                 ++no_elements;
             }
-            newCenter = sum / no_elements;
-            output.collect(new DoubleWritable(newCenter), new Text(points));
+            // DoubleWritable[] newCenter = new DoubleWritable[7];
+            // for (int i = 0; i < 7; i++) {
+            // newCenter[i] = new DoubleWritable(sum[i] / no_elements);
+            // }
+            MyPointWritable newCenter_temp = new MyPointWritable();
+            newCenter_temp.set(newCenter);
+            output.collect(newCenter_temp, new Text(points));
         }
     }
 
@@ -105,9 +252,9 @@ public class KMeans {
                 DistributedCache.addCacheFile(hdfsPath.toUri(), conf);
             }
             conf.setJobName(JOB_NAME);
-            conf.setMapOutputKeyClass(DoubleWritable.class);
-            conf.setMapOutputValueClass(DoubleWritable.class);
-            conf.setOutputKeyClass(DoubleWritable.class);
+            conf.setMapOutputKeyClass(MyPointWritable.class);
+            conf.setMapOutputValueClass(MyPointWritable.class);
+            conf.setOutputKeyClass(MyPointWritable.class);
             conf.setOutputValueClass(Text.class);
             conf.setMapperClass(Map.class);
             conf.setReducerClass(Reduce.class);
