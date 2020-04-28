@@ -19,7 +19,7 @@ public class KMeans {
     public static String OUTPUT_FILE_NAME = "/part-00000";
     public static String DATA_FILE_NAME = "/data.txt";
     public static String JOB_NAME = "KMeans";
-    public static String SPLITTER = "t| ";
+    public static String SPLITTER = "\\t| ";
     public static List<Double> mCenters = new ArrayList<Double>();
 
     public static class Map extends MapReduceBase
