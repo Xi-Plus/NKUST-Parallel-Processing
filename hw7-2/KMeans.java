@@ -122,7 +122,7 @@ public class KMeans {
             List<Double> centers_next = new ArrayList<Double>();
             String line = br.readLine();
             while (line != null) {
-                String[] sp = line.split("t| ");
+                String[] sp = line.split(SPLITTER);
                 double c = Double.parseDouble(sp[0]);
                 centers_next.add(c);
                 line = br.readLine();
