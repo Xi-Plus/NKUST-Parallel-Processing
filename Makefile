@@ -8,6 +8,8 @@ stop:
 	stop-yarn.sh
 	mr-jobhistory-daemon.sh stop historyserver
 
+restart: stop start
+
 clear:
 	rm /usr/local/hadoop/hadoop_data/hdfs/namenode/current/ -R || true
 	rm /usr/local/hadoop/hadoop_data/hdfs/datanode/current/ -R || true
