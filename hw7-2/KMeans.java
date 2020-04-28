@@ -148,8 +148,11 @@ public class KMeans {
         public void map(LongWritable key, Text value, OutputCollector<MyPointWritable, MyPointWritable> output,
                 Reporter reporter) throws IOException {
             String line = value.toString();
+            if (line.equals("")) {
+                return;
+            }
             String[] data = line.split(",");
-            if (data[0].equals("\"\"")) {
+            if (data[0].equals("") || data[0].equals("\"\"")) {
                 return;
             }
             for (int i = 0; i < data.length; i++) {
