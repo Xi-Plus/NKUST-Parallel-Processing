@@ -101,7 +101,7 @@ public class KMeans {
                 Path hdfsPath = new Path(input + CENTROID_FILE_NAME);
                 DistributedCache.addCacheFile(hdfsPath.toUri(), conf);
             } else {
-                Path hdfsPath = new Path(again_input + OUTPUT_FIE_NAME);
+                Path hdfsPath = new Path(again_input + OUTPUT_FILE_NAME);
                 DistributedCache.addCacheFile(hdfsPath.toUri(), conf);
             }
             conf.setJobName(JOB_NAME);
@@ -116,7 +116,7 @@ public class KMeans {
             FileInputFormat.setInputPaths(conf, new Path(input + DATA_FILE_NAME));
             FileOutputFormat.setOutputPath(conf, new Path(output));
             JobClient.runJob(conf);
-            Path ofile = new Path(output + OUTPUT_FIE_NAME);
+            Path ofile = new Path(output + OUTPUT_FILE_NAME);
             FileSystem fs = FileSystem.get(new Configuration());
             BufferedReader br = new BufferedReader(new InputStreamReader(fs.open(ofile)));
             List<Double> centers_next = new ArrayList<Double>();
