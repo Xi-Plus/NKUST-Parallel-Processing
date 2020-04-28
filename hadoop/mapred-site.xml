@@ -33,4 +33,14 @@
     <value>localhost:19888</value>
   </property>
 
+  <property>
+    <name>mapreduce.map.java.opts</name>
+    <value>-Xmx2048m</value>
+  </property>
+
+  <property>
+    <name>mapreduce.reduce.java.opts</name>
+    <value>-Xmx2048m</value>
+  </property>
+
 </configuration>
