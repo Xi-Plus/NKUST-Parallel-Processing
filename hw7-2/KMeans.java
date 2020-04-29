@@ -20,13 +20,16 @@ public class KMeans {
     public static String DATA_FILE_NAME = "/computers.csv";
     public static String JOB_NAME = "KMeans";
     public static String SPLITTER = "\\t| ";
-    public static List<double[]> mCenters = new ArrayList<double[]>();
+    public static List<MyPointWritable> mCenters = new ArrayList<MyPointWritable>();
 
-    public static class MyPointWritable implements Writable, WritableComparable<MyPointWritable> {
+    public static class MyPointWritable
+            implements Writable, WritableComparable<MyPointWritable>, Comparator<MyPointWritable> {
+        public int id;
         public double[] points;
 
         public MyPointWritable() {
-            points = new double[7];
+            id = 0;
+            points = new double[] { 0, 0, 0, 0, 0, 0, 0 };
         }
 
         public void set(double[] in) {
@@ -35,8 +38,17 @@ public class KMeans {
             }
         }
 
+        public double getDis(MyPointWritable other) {
+            double result = 0;
+            for (int i = 0; i < 7; i++) {
+                result += Math.pow(this.points[i] - other.points[i], 2);
+            }
+            return Math.sqrt(result);
+        }
+
         @Override
         public void readFields(DataInput in) throws IOException {
+            id = in.readInt();
             for (int i = 0; i < 7; i++) {
                 points[i] = in.readDouble();
             }
@@ -44,6 +56,7 @@ public class KMeans {
 
         @Override
         public void write(DataOutput out) throws IOException {
+            out.writeInt(id);
             for (int i = 0; i < 7; i++) {
                 out.writeDouble(points[i]);
             }
@@ -60,59 +73,23 @@ public class KMeans {
 
         @Override
         public int compareTo(MyPointWritable other) {
-            for (int i = 0; i < this.points.length && i < other.points.length; i++) {
+            for (int i = 0; i < 7; i++) {
+                if (Math.abs(this.points[i] - other.points[i]) < 0.0001) {
+                    continue;
+                }
                 if (this.points[i] < other.points[i]) {
                     return -1;
-                } else if (this.points[i] < other.points[i]) {
-                    return 1;
                 }
+                return 1;
             }
             return 0;
         }
+
+        @Override
+        public int compare(MyPointWritable a, MyPointWritable b) {
+            return a.compareTo(b);
+        }
     }
-
-    // public static class MyPointWritable extends ArrayWritable {
-    // public MyPointWritable(DoubleWritable[] doubleWritables) {
-    // super(DoubleWritable.class);
-    // }
-
-    // @Override
-    // public DoubleWritable[] get() {
-    // return (DoubleWritable[]) super.get();
-    // }
-
-    // @Override
-    // public String toString() {
-    // DoubleWritable[] values = get();
-    // String result = "";
-    // for (int i = 0; i < values.length; i++) {
-    // if (i > 0) {
-    // result += " ";
-    // }
-    // result += values[i].toString();
-    // }
-    // return result;
-    // }
-
-    // @Override
-    // public int compareTo(MyPointWritable otherWritable) {
-    // DoubleWritable[] me = get();
-    // DoubleWritable[] other = otherWritable.get();
-    // for (int i = 0; i < me.length && i < other.length; i++) {
-    // if (me[i].get() < other[i].get()) {
-    // return -1;
-    // } else if (me[i].get() < other[i].get()) {
-    // return 1;
-    // }
-    // }
-    // if (me.length < other.length) {
-    // return -1;
-    // } else if (me.length > other.length) {
-    // return 1;
-    // }
-    // return 0;
-    // }
-    // }
 
     public static class Map extends MapReduceBase
             implements Mapper<LongWritable, Text, MyPointWritable, MyPointWritable> {
@@ -128,9 +105,9 @@ public class KMeans {
                         while ((line = cacheReader.readLine()) != null) {
                             String[] temp = line.split(SPLITTER);
 
-                            double[] temp2 = new double[7];
+                            MyPointWritable temp2 = new MyPointWritable();
                             for (int i = 0; i < 7; i++) {
-                                temp2[i] = Double.parseDouble(temp[i]);
+                                temp2.points[i] = Double.parseDouble(temp[i]);
                             }
 
                             mCenters.add(temp2);
@@ -161,44 +138,27 @@ public class KMeans {
                 }
             }
 
-            double[] point = new double[7];
-            point[0] = (Double.parseDouble(data[1]) - 949) / (5399 - 949); // price
-            point[1] = (Double.parseDouble(data[2]) - 25) / (100 - 25); // speed
-            point[2] = (Double.parseDouble(data[3]) - 80) / (2100 - 80); // hd
-            point[3] = (Double.parseDouble(data[4]) - 2) / (32 - 2); // ram
-            point[4] = (Double.parseDouble(data[5]) - 14) / (17 - 14); // screen
-            point[5] = (Double.parseDouble(data[9]) - 39) / (339 - 39); // ads
-            point[6] = (Double.parseDouble(data[10]) - 1) / (35 - 1); // trend
+            MyPointWritable point = new MyPointWritable();
+            point.id = Integer.parseInt(data[0]);
+            point.points[0] = (Double.parseDouble(data[1]) - 949) / (5399 - 949); // price
+            point.points[1] = (Double.parseDouble(data[2]) - 25) / (100 - 25); // speed
+            point.points[2] = (Double.parseDouble(data[3]) - 80) / (2100 - 80); // hd
+            point.points[3] = (Double.parseDouble(data[4]) - 2) / (32 - 2); // ram
+            point.points[4] = (Double.parseDouble(data[5]) - 14) / (17 - 14); // screen
+            point.points[5] = (Double.parseDouble(data[9]) - 39) / (339 - 39); // ads
+            point.points[6] = (Double.parseDouble(data[10]) - 1) / (35 - 1); // trend
 
             double min1, min2 = Double.MAX_VALUE;
-            double[] nearest_center = mCenters.get(0);
-            for (double[] c : mCenters) {
-                min1 = 0;
-                for (int i = 0; i < 7; i++) {
-                    min1 += Math.pow(c[i] - point[i], 2);
-                }
-                min1 = Math.sqrt(min1);
+            MyPointWritable nearest_center = mCenters.get(0);
+            for (MyPointWritable c : mCenters) {
+                min1 = c.getDis(point);
 
                 if (Math.abs(min1) < Math.abs(min2)) {
                     nearest_center = c;
                     min2 = min1;
                 }
             }
-            // DoubleWritable[] nearest_center_temp = new DoubleWritable[7];
-            // for (int i = 0; i < 7; i++) {
-            // nearest_center_temp[i] = new DoubleWritable(nearest_center[i]);
-            // }
-            // DoubleWritable[] point_temp = new DoubleWritable[7];
-            // for (int i = 0; i < 7; i++) {
-            // point_temp[i] = new DoubleWritable(point[i]);
-            // }
-            // output.collect(new MyPointWritable(nearest_center_temp), new
-            // MyPointWritable(point_temp));
-            MyPointWritable nearest_center_temp = new MyPointWritable();
-            nearest_center_temp.set(nearest_center);
-            MyPointWritable point_temp = new MyPointWritable();
-            point_temp.set(point);
-            output.collect(nearest_center_temp, point_temp);
+            output.collect(nearest_center, point);
         }
     }
 
@@ -207,29 +167,23 @@ public class KMeans {
         @Override
         public void reduce(MyPointWritable key, Iterator<MyPointWritable> values,
                 OutputCollector<MyPointWritable, Text> output, Reporter reporter) throws IOException {
-            double[] newCenter = new double[7];
-            double[] sum = new double[7];
-            for (int i = 0; i < 7; i++) {
-                sum[i] = 0;
-            }
+            MyPointWritable newCenter = new MyPointWritable();
             int no_elements = 0;
             String points = "";
             while (values.hasNext()) {
                 MyPointWritable temp = values.next();
-                points += points + "| ";
+                points += " ";
+                points += temp.id;
+                // points += temp.toString();
                 for (int i = 0; i < 7; i++) {
-                    points += Double.toString(temp.points[i]) + " ";
-                    sum[i] += temp.points[i];
+                    newCenter.points[i] += temp.points[i];
                 }
                 ++no_elements;
             }
-            // DoubleWritable[] newCenter = new DoubleWritable[7];
-            // for (int i = 0; i < 7; i++) {
-            // newCenter[i] = new DoubleWritable(sum[i] / no_elements);
-            // }
-            MyPointWritable newCenter_temp = new MyPointWritable();
-            newCenter_temp.set(newCenter);
-            output.collect(newCenter_temp, new Text(points));
+            for (int i = 0; i < 7; i++) {
+                newCenter.points[i] /= no_elements;
+            }
+            output.collect(newCenter, new Text(points));
         }
     }
 
@@ -240,10 +194,10 @@ public class KMeans {
     public static void run(String[] args) throws Exception {
         IN = args[0];
         OUT = args[1];
-        String input = IN;
-        String output = OUT + System.nanoTime();
-        String again_input = output;
         int iteration = 0;
+        String input = IN;
+        String output = OUT + iteration;
+        String again_input = output;
         boolean isdone = false;
         while (isdone == false) {
             JobConf conf = new JobConf(KMeans.class);
@@ -269,11 +223,14 @@ public class KMeans {
             Path ofile = new Path(output + OUTPUT_FILE_NAME);
             FileSystem fs = FileSystem.get(new Configuration());
             BufferedReader br = new BufferedReader(new InputStreamReader(fs.open(ofile)));
-            List<Double> centers_next = new ArrayList<Double>();
+            List<MyPointWritable> centers_next = new ArrayList<MyPointWritable>();
             String line = br.readLine();
             while (line != null) {
                 String[] sp = line.split(SPLITTER);
-                double c = Double.parseDouble(sp[0]);
+                MyPointWritable c = new MyPointWritable();
+                for (int i = 0; i < 7; i++) {
+                    c.points[i] = Double.parseDouble(sp[i]);
+                }
                 centers_next.add(c);
                 line = br.readLine();
             }
@@ -287,11 +244,14 @@ public class KMeans {
             Path prevfile = new Path(prev);
             FileSystem fs1 = FileSystem.get(new Configuration());
             BufferedReader br1 = new BufferedReader(new InputStreamReader(fs1.open(prevfile)));
-            List<Double> centers_prev = new ArrayList<Double>();
+            List<MyPointWritable> centers_prev = new ArrayList<MyPointWritable>();
             String l = br1.readLine();
             while (l != null) {
                 String[] sp1 = l.split(SPLITTER);
-                double d = Double.parseDouble(sp1[0]);
+                MyPointWritable d = new MyPointWritable();
+                for (int i = 0; i < 7; i++) {
+                    d.points[i] = Double.parseDouble(sp1[i]);
+                }
                 centers_prev.add(d);
                 l = br1.readLine();
             }
@@ -299,19 +259,23 @@ public class KMeans {
             Collections.sort(centers_next);
             Collections.sort(centers_prev);
 
-            Iterator<Double> it = centers_prev.iterator();
-            for (double d : centers_next) {
-                double temp = it.next();
-                if (Math.abs(temp - d) <= 0.1) {
-                    isdone = true;
-                } else {
-                    isdone = false;
+            Iterator<MyPointWritable> it = centers_prev.iterator();
+            isdone = true;
+            for (MyPointWritable d : centers_next) {
+                MyPointWritable temp = it.next();
+                for (int i = 0; i < 7; i++) {
+                    if (Math.abs(temp.points[i] - d.points[i]) > 0.1) {
+                        isdone = false;
+                        break;
+                    }
+                }
+                if (!isdone) {
                     break;
                 }
             }
             ++iteration;
             again_input = output;
-            output = OUT + System.nanoTime();
+            output = OUT + iteration;
         }
     }
 }
