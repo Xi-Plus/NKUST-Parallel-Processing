@@ -18,7 +18,7 @@ clear:
 run:
 	hadoop com.sun.tools.javac.Main KMeans.java
 	jar cf KMeans.jar KMeans*.class
-	hadoop fs -rm -R /user/xiplus/KMeans/output*
+	hadoop fs -rm -R /user/xiplus/KMeans/output* || true
 	hadoop jar KMeans.jar KMeans /user/xiplus/KMeans/input /user/xiplus/KMeans/output
 
 ls:
