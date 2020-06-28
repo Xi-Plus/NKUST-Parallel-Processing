@@ -101,10 +101,10 @@ public class CountShakespeare {
 		// set the OutputFormat for the job
 		// job.setInputFormatClass(TextInputFormat.class);
 		// job.setOutputFormatClass(FileOutputFormat.class);
-		job.setOutputFormatClass(NullOutputFormat.class);
+		// job.setOutputFormatClass(NullOutputFormat.class);
 
 		// FileInputFormat.setInputPaths(job, new Path("/home/xiplus/cs/input"));
-		// FileOutputFormat.setOutputPath(job, new Path("/home/xiplus/cs/output"));
+		FileOutputFormat.setOutputPath(job, new Path("/home/xiplus/cs/output"));
 		// job.waitForCompletion(true);
 		// FileInputFormat.setOutputPath(job, new Path("/home/xiplus/cs"));
 		// FileOutputFormat.setOutputPath(job, new Path("/home/xiplus/cs"));
