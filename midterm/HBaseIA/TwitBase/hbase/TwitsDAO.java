@@ -4,6 +4,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.nio.ByteBuffer;
 
 import org.apache.hadoop.hbase.client.Get;
 import org.apache.hadoop.hbase.client.HTableInterface;
@@ -39,23 +40,18 @@ public class TwitsDAO {
   }
 
   private static byte[] mkRowKey(Twit t) {
-    return mkRowKey(t.user, t.dt);
+    return mkRowKey(t.tweet_id);
   }
 
-  private static byte[] mkRowKey(String user, DateTime dt) {
-    byte[] userHash = Md5Utils.md5sum(user);
-    // Gets the milliseconds of the datetime instant from the Java epoch of
-    // 1970-01-01T00:00:00Z
-    byte[] timestamp = Bytes.toBytes(-1 * dt.getMillis());
-    byte[] rowKey = new byte[Md5Utils.MD5_LENGTH + longLength];
+  private static byte[] mkRowKey(int tweet_id) {
+    byte[] rowKey = new byte[4];
 
     int offset = 0;
     // Put bytes at the specified byte array position
     // tgtBytes - the byte array; tgtOffset - position in the array; srcBytes -
     // array to write out; srcOffset - source offset; srcLength - source length
     // Return incremented offset
-    offset = Bytes.putBytes(rowKey, offset, userHash, 0, userHash.length);
-    Bytes.putBytes(rowKey, offset, timestamp, 0, timestamp.length);
+    offset = Bytes.putBytes(rowKey, 0, Bytes.toBytes(tweet_id), 0, 4);
     return rowKey;
   }
 
@@ -63,16 +59,14 @@ public class TwitsDAO {
     // Used to perform Put operations for a single row
     Put p = new Put(mkRowKey(t));
     // Add the specified column and value to this Put operation
-    p.add(TWITS_FAM, USER_COL, Bytes.toBytes(t.user));
     p.add(TWITS_FAM, TWIT_COL, Bytes.toBytes(t.text));
     return p;
   }
 
-  private static Get mkGet(String user, DateTime dt) {
+  private static Get mkGet(int tweet_id) {
     // Used to perform Get operations on a single row
-    Get g = new Get(mkRowKey(user, dt));
+    Get g = new Get(mkRowKey(tweet_id));
     // Get the column from the specific family with the specified qualifier
-    g.addColumn(TWITS_FAM, USER_COL);
     g.addColumn(TWITS_FAM, TWIT_COL);
     return g;
   }
@@ -93,12 +87,11 @@ public class TwitsDAO {
     return sb.toString();
   }
 
-  private static Scan mkScan(String user) {
-    byte[] userHash = Md5Utils.md5sum(user);
+  private static Scan mkScan(int tweet_id) {
     // Pad zeros at the end of source byte array
-    byte[] startRow = Bytes.padTail(userHash, longLength);
-    byte[] stopRow = Bytes.padTail(userHash, longLength);
-    stopRow[Md5Utils.MD5_LENGTH - 1]++;
+    byte[] startRow = Bytes.padTail(Bytes.toBytes(tweet_id), 4);
+    byte[] stopRow = Bytes.padTail(Bytes.toBytes(tweet_id), 4);
+    stopRow[3]++;
 
     // The DEBUG Level designates fine-grained informational events that are most
     // useful to debug an application
@@ -112,18 +105,17 @@ public class TwitsDAO {
     // stopRow - row to stop scanner before; exclusive
     Scan s = new Scan(startRow, stopRow);
     // Get the column from the specified family with the specified qualifier
-    s.addColumn(TWITS_FAM, USER_COL);
     s.addColumn(TWITS_FAM, TWIT_COL);
     return s;
   }
 
-  public void postTwit(String user, DateTime dt, String text) throws IOException {
+  public void postTwit(int tweet_id, String text) throws IOException {
     // Used to communicate with a single HBase table
     // Get a reference to the specified table from the pool
     // Create a new one if the specified table is not available
     HTableInterface twits = pool.getTable(TABLE_NAME);
 
-    Put p = mkPut(new Twit(user, dt, text));
+    Put p = mkPut(new Twit(tweet_id, text));
     // Put some data in the table in batch
     twits.put(p);
 
@@ -131,13 +123,13 @@ public class TwitsDAO {
     twits.close();
   }
 
-  public HBaseIA.TwitBase.model.Twit getTwit(String user, DateTime dt) throws IOException {
+  public HBaseIA.TwitBase.model.Twit getTwit(int tweet_id) throws IOException {
     // Used to communicate with a single HBase table
     // Get a reference to the specified table from the pool
     // Create a new one if the specified table is not available
     HTableInterface twits = pool.getTable(TABLE_NAME);
 
-    Get g = mkGet(user, dt);
+    Get g = mkGet(tweet_id);
     // Single row result of a Get or Scan query
     // Extract certain cells from a given row
     Result result = twits.get(g);
@@ -150,7 +142,7 @@ public class TwitsDAO {
     return t;
   }
 
-  public List<HBaseIA.TwitBase.model.Twit> list(String user) throws IOException {
+  public List<HBaseIA.TwitBase.model.Twit> list(int tweet_id) throws IOException {
     // Used to communicate with a single HBase table
     // Get a reference to the specified table from the pool
     // Create a new one if the specified table is not available
@@ -159,7 +151,7 @@ public class TwitsDAO {
     // Interface for client-side scanning
     // Go to Table to obtain instances
     // Return a scanner on the current table as specified by the Scan object
-    ResultScanner results = twits.getScanner(mkScan(user));
+    ResultScanner results = twits.getScanner(mkScan(tweet_id));
     // An ordered collection
     // the user of this interface has precise control over where in the list each
     // element is inserted
@@ -185,18 +177,15 @@ public class TwitsDAO {
       // The Cell for the most recent timestamp for a given column
       // Method for retrieving the row key that corresponds to the row from which this
       // Result was created
-      this(r.getColumnLatest(TWITS_FAM, USER_COL).getValue(),
-          Arrays.copyOfRange(r.getRow(), Md5Utils.MD5_LENGTH, Md5Utils.MD5_LENGTH + longLength),
-          r.getColumnLatest(TWITS_FAM, TWIT_COL).getValue());
+      this(ByteBuffer.wrap(r.getRow()).getInt(), r.getColumnLatest(TWITS_FAM, TWIT_COL).getValue());
     }
 
-    private Twit(byte[] user, byte[] dt, byte[] text) {
-      this(Bytes.toString(user), new DateTime(-1 * Bytes.toLong(dt)), Bytes.toString(text));
+    private Twit(int tweet_id, byte[] text) {
+      this(tweet_id, Bytes.toString(text));
     }
 
-    private Twit(String user, DateTime dt, String text) {
-      this.user = user;
-      this.dt = dt;
+    private Twit(int tweet_id, String text) {
+      this.tweet_id = tweet_id;
       this.text = text;
     }
   }

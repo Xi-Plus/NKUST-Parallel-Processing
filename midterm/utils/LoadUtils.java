@@ -12,8 +12,9 @@ import HBaseIA.TwitBase.LoadUsers;
 
 public class LoadUtils {
 
-  public static final String WORDS_PATH = "/home/menghanyang/DB_HBase_chp_2/web2";
-  public static final String NAMES_PATH = "/home/menghanyang/DB_HBase_chp_2/propernames";
+  // public static final String WORDS_PATH = "/home/xiplus/midterm/sample.csv";
+  public static final String WORDS_PATH = "/home/xiplus/midterm/twcs.csv";
+  public static final String NAMES_PATH = "/home/xiplus/midterm/propernames";
 
   public static List<String> readResource(String path) throws IOException {
     // An ordered collection

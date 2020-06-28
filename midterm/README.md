@@ -28,7 +28,7 @@ jar -cvf utils.jar -C utils .
 java -classpath /home/xiplus/midterm/:`hbase classpath` HBaseIA.TwitBase.UsersTool help
 
 java -classpath /home/xiplus/midterm/:`hbase classpath` HBaseIA.TwitBase.LoadUsers help
-java -classpath /home/xiplus/midterm/:`hbase classpath` HBaseIA.TwitBase.LoadTwits help
+java -classpath /home/xiplus/midterm/:`hbase classpath` HBaseIA.TwitBase.LoadTwits run
 java -classpath /home/xiplus/midterm/:`hbase classpath` HBaseIA.TwitBase.mapreduce.CountShakespeare
 
 ```

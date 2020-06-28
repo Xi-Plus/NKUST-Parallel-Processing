@@ -64,14 +64,36 @@ public class LoadTwits {
     UsersDAO users = new UsersDAO(pool);
     TwitsDAO twits = new TwitsDAO(pool);
 
-    int count = Integer.parseInt(args[0]);
+    // int count = Integer.parseInt(args[0]);
     List<String> words = LoadUtils.readResource(LoadUtils.WORDS_PATH);
 
-    for (User u : users.getUsers()) {
-      for (int i = 0; i < count; i++) {
-        twits.postTwit(u.user, randDT(), randTwit(words));
+    int prev = 0;
+    for (String word : words) {
+      String[] temp = word.split(",");
+      if (temp[0].equals("tweet_id")) {
+        continue;
+      }
+      if (temp.length < 5) {
+        continue;
+      }
+      try {
+        int idx = Integer.parseInt(temp[0]);
+        if (idx - prev > 10000) {
+          System.out.println(idx);
+          prev = idx;
+        }
+
+        // System.out.println(temp[0] + " --- " + temp[4]);
+        twits.postTwit(idx, temp[4]);
+      } catch (Exception e) {
+        // System.out.println("Error: " + temp[0]);
       }
     }
+    // for (User u : users.getUsers()) {
+    // for (int i = 0; i < count; i++) {
+    // twits.postTwit(u.user, randDT(), randTwit(words));
+    // }
+    // }
 
     // Close all the HTable instances , belonging to the given table, in the table
     // pool
